@@ -7,9 +7,12 @@ import { NextRequest, NextResponse } from "next/server";
 export async function POST(request) {
   try {
     const body = await request.json();
+    console.log("Received body:", body);
 
     const { uploadedFile } = body;
-    const loader = new PDFLoader(uploadedFile);
+    console.log("uploadedFile path:", uploadedFile);
+    const pdfFilePath = uploadedFile;
+    const loader = new PDFLoader(pdfFilePath);
 
     // Page by page load the PDF file
     const docs = await loader.load();

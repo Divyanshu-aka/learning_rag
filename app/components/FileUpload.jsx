@@ -115,8 +115,10 @@ export default function FileUpload({ onFileUploaded, uploadedFiles }) {
         <div className="space-y-4">
             {/* Upload Area */}
             <div
-                className={`relative p-6 text-center transition-colors card ${isDragOver ? '' : ''}`}
-                style={{ borderStyle: 'dashed', borderColor: isDragOver ? 'var(--primary)' : 'var(--border)', background: isDragOver ? 'color-mix(in srgb, var(--primary) 6%, var(--surface))' : 'var(--surface)', borderWidth: '2px' }}
+                className={`relative p-6 text-center transition-colors rounded-lg border-2 border-dashed ${isDragOver
+                        ? 'border-blue-400 bg-blue-500/10'
+                        : 'border-gray-600 bg-gray-700'
+                    }`}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
@@ -130,29 +132,29 @@ export default function FileUpload({ onFileUploaded, uploadedFiles }) {
                 />
 
                 <div className="space-y-2">
-                    <div className="w-12 h-12 rounded-lg mx-auto flex items-center justify-center" style={{ background: 'var(--muted)' }}>
-                        <svg className="w-6 h-6" style={{ color: 'var(--text-muted)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="w-12 h-12 rounded-lg mx-auto flex items-center justify-center bg-gray-600">
+                        <svg className="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                         </svg>
                     </div>
 
                     {isUploading ? (
                         <div className="space-y-2">
-                            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Uploading and processing...</p>
-                            <div className="w-full rounded-full h-2" style={{ background: '#e5e7eb' }}>
+                            <p className="text-sm text-gray-300">Uploading and processing...</p>
+                            <div className="w-full rounded-full h-2 bg-gray-600">
                                 <div
-                                    className="h-2 rounded-full transition-all duration-300"
-                                    style={{ background: 'var(--primary)', width: `${uploadProgress}%` }}
+                                    className="h-2 rounded-full transition-all duration-300 bg-blue-500"
+                                    style={{ width: `${uploadProgress}%` }}
                                 ></div>
                             </div>
-                            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{uploadProgress}% complete</p>
+                            <p className="text-xs text-gray-400">{uploadProgress}% complete</p>
                         </div>
                     ) : (
                         <>
-                            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                                Drop your PDF here or <span style={{ color: 'var(--primary)' }} className="font-medium">browse files</span>
+                            <p className="text-sm text-gray-300">
+                                Drop your PDF here or <span className="font-medium text-blue-400">browse files</span>
                             </p>
-                            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>PDF files only, up to 10MB</p>
+                            <p className="text-xs text-gray-400">PDF files only, up to 10MB</p>
                         </>
                     )}
                 </div>
@@ -161,24 +163,23 @@ export default function FileUpload({ onFileUploaded, uploadedFiles }) {
             {/* Uploaded Files List */}
             {uploadedFiles.length > 0 && (
                 <div className="space-y-2">
-                    <h3 className="text-sm font-medium" style={{ color: 'var(--text)' }}>Uploaded Documents</h3>
+                    <h3 className="text-sm font-medium text-white">Uploaded Documents</h3>
                     {uploadedFiles.map((file, index) => (
-                        <div key={index} className="flex items-center justify-between p-3 card">
+                        <div key={index} className="flex items-center justify-between p-3 bg-gray-700 rounded-lg">
                             <div className="flex items-center space-x-3">
-                                <div className="w-8 h-8 rounded flex items-center justify-center" style={{ background: '#fee2e2' }}>
-                                    <svg className="w-4 h-4" style={{ color: '#b91c1c' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <div className="w-8 h-8 rounded flex items-center justify-center bg-red-100">
+                                    <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                                     </svg>
                                 </div>
                                 <div>
-                                    <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>{file.name}</p>
-                                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{file.size} • Uploaded {new Date(file.uploadedAt).toLocaleDateString()}</p>
+                                    <p className="text-sm font-medium text-white">{file.name}</p>
+                                    <p className="text-xs text-gray-400">{file.size} • Uploaded {new Date(file.uploadedAt).toLocaleDateString()}</p>
                                 </div>
                             </div>
                             <button
                                 onClick={() => removeFile(index)}
-                                className="transition-colors"
-                                style={{ color: '#a1a1aa' }}
+                                className="text-gray-400 hover:text-white transition-colors"
                             >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
