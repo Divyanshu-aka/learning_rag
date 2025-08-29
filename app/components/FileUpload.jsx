@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 
-export default function FileUpload({ onFileUploaded, uploadedFiles, isOpen, onClose }) {
+export default function FileUpload({ onFileUploaded, onFileRemoved, uploadedFiles, isOpen, onClose }) {
     const [isDragOver, setIsDragOver] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
@@ -67,7 +67,10 @@ export default function FileUpload({ onFileUploaded, uploadedFiles, isOpen, onCl
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ uploadedFile: uploadData.filepath }),
+                body: JSON.stringify({
+                    filename: uploadData.filename,
+                    filepath: uploadData.filepath
+                }),
             });
 
             if (!indexResponse.ok) {
@@ -79,6 +82,7 @@ export default function FileUpload({ onFileUploaded, uploadedFiles, isOpen, onCl
             // Call the parent component's callback
             onFileUploaded({
                 name: file.name,
+                serverFilename: uploadData.filename, // Store the server filename for deletion
                 size: formatFileSize(file.size),
                 type: file.type,
                 filepath: uploadData.filepath,
@@ -107,9 +111,15 @@ export default function FileUpload({ onFileUploaded, uploadedFiles, isOpen, onCl
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     };
 
-    const removeFile = (index) => {
-        // This would need to be implemented based on your requirements
-        console.log('Remove file at index:', index);
+    const removeFile = async (index) => {
+        const file = uploadedFiles[index];
+        if (!file) return;
+
+        // Call the parent component's callback to handle the deletion
+
+        if (onFileRemoved) {
+            await onFileRemoved(index);
+        }
     };
 
     if (!isOpen) return null;
@@ -183,21 +193,22 @@ export default function FileUpload({ onFileUploaded, uploadedFiles, isOpen, onCl
                         <div className="space-y-2">
                             <h3 className="text-sm font-medium text-white">Uploaded Documents</h3>
                             {uploadedFiles.map((file, index) => (
-                                <div key={index} className="flex items-center justify-between p-3 bg-gray-700 rounded-lg">
-                                    <div className="flex items-center space-x-3">
+                                <div key={index} className="flex items-center justify-between p-3 bg-gray-700 rounded-lg group">
+                                    <div className="flex items-center space-x-3 flex-1 min-w-0">
                                         <div className="w-8 h-8 rounded flex items-center justify-center bg-red-100">
                                             <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                                             </svg>
                                         </div>
-                                        <div>
-                                            <p className="text-sm font-medium text-white">{file.name}</p>
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-sm font-medium text-white truncate">{file.name}</p>
                                             <p className="text-xs text-gray-400">{file.size} • Uploaded {new Date(file.uploadedAt).toLocaleDateString()}</p>
                                         </div>
                                     </div>
                                     <button
                                         onClick={() => removeFile(index)}
-                                        className="text-gray-400 hover:text-white transition-colors"
+                                        className="flex-shrink-0 ml-2 text-gray-400 hover:text-red-400 hover:bg-gray-600 rounded p-1 transition-all duration-200"
+                                        title="Remove file"
                                     >
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

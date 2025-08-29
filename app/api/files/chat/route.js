@@ -29,7 +29,7 @@ export async function POST(request) {
     );
 
     const vectorSearcher = vectorStore.asRetriever({
-      k: 3,
+      k: 125,
     });
 
     const relevantChunk = await vectorSearcher.invoke(userQuery);

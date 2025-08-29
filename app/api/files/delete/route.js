@@ -1,18 +1,25 @@
-import {NextResponse, NextRequest} from "next/server";
+import { NextResponse } from "next/server";
+import { QdrantClient } from "@qdrant/js-client-rest";
 
 export async function DELETE(request) {
   try {
-    const { id } = request.query;
+    const body = await request.json();
+    const { filename } = body;
 
-    // Perform deletion logic here
-    console.log(`Deleting file with ID: ${id}`);
+    const client = new QdrantClient({
+      url: process.env.QDRANT_URL,
+    });
+
+    console.log(`Deleting file: ${filename}`);
+
+    await client.deleteCollection(filename);
 
     return NextResponse.json(
-      { message: "File deleted successfully" },
+      { message: "Collection removed successfully" },
       { status: 200 }
     );
   } catch (error) {
-    console.error("Error deleting file:", error);
+    console.error("Error removing collection:", error);
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 }

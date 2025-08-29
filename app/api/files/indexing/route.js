@@ -2,16 +2,16 @@ import "dotenv/config";
 import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
 import { QdrantVectorStore } from "@langchain/qdrant";
 import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
 export async function POST(request) {
   try {
     const body = await request.json();
     console.log("Received body:", body);
 
-    const { uploadedFile } = body;
-    console.log("uploadedFile path:", uploadedFile);
-    const pdfFilePath = uploadedFile;
+    const { filename , filepath } = body;
+    console.log("uploadedFile path:", filename,filepath);
+    const pdfFilePath = filepath;
     const loader = new PDFLoader(pdfFilePath);
 
     // Page by page load the PDF file
@@ -27,8 +27,8 @@ export async function POST(request) {
       docs,
       embeddings,
       {
-        url: "http://localhost:6333",
-        collectionName: "chaicode-collection",
+        url: process.env.QDRANT_URL ,
+        collectionName: filename,
       }
     );
 

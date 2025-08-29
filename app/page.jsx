@@ -34,6 +34,37 @@ export default function Home() {
     setShowUpload(false);
   };
 
+  const handleFileRemoved = async (fileIndex) => {
+    const file = uploadedFiles[fileIndex];
+    if (!file) return;
+
+    try {
+      // Use the server filename from uploadData (which was used during indexing)
+      const filenameToDelete = file.serverFilename || file.name;
+
+      // Call the delete API to remove from Qdrant collection
+      const response = await fetch('/api/files/delete', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ filename: filenameToDelete }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete file from collection');
+      }
+
+      // Remove from local state
+      setUploadedFiles((prev) => prev.filter((_, index) => index !== fileIndex));
+
+      console.log(`File ${filenameToDelete} removed successfully`);
+    } catch (error) {
+      console.error('Error removing file:', error);
+      alert('Failed to remove file. Please try again.');
+    }
+  };
+
   const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
 
@@ -97,7 +128,7 @@ export default function Home() {
             <div className="space-y-2">
               {uploadedFiles.length > 0 ? (
                 uploadedFiles.map((file, index) => (
-                  <div key={index} className="flex items-center gap-3 p-3 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors">
+                  <div key={index} className="flex items-center gap-3 p-3 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors group">
                     <div className="w-8 h-8 rounded bg-gray-600 flex items-center justify-center">
                       <svg className="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
@@ -107,7 +138,18 @@ export default function Home() {
                       <p className="text-sm font-medium truncate text-white">{file.name}</p>
                       <p className="text-xs text-gray-400">{file.size} • PDF</p>
                     </div>
-                    <div className="w-2 h-2 rounded-full bg-green-400" title="Indexed"></div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-green-400" title="Indexed"></div>
+                      <button
+                        onClick={() => handleFileRemoved(index)}
+                        className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-400 transition-all duration-200 p-1"
+                        title="Remove file"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                 ))
               ) : (
@@ -246,6 +288,7 @@ export default function Home() {
       {/* File Upload Modal */}
       <FileUpload
         onFileUploaded={handleFileUploaded}
+        onFileRemoved={handleFileRemoved}
         uploadedFiles={uploadedFiles}
         isOpen={showUpload}
         onClose={() => setShowUpload(false)}
