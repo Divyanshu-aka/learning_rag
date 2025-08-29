@@ -94,12 +94,6 @@ export default function Home() {
           </div>
 
           <div className="p-4 overflow-y-auto flex-1">
-            {showUpload && (
-              <div className="mb-4">
-                <FileUpload onFileUploaded={handleFileUploaded} uploadedFiles={uploadedFiles} />
-              </div>
-            )}
-
             <div className="space-y-2">
               {uploadedFiles.length > 0 ? (
                 uploadedFiles.map((file, index) => (
@@ -248,6 +242,14 @@ export default function Home() {
           </div>
         </section>
       </div>
+
+      {/* File Upload Modal */}
+      <FileUpload
+        onFileUploaded={handleFileUploaded}
+        uploadedFiles={uploadedFiles}
+        isOpen={showUpload}
+        onClose={() => setShowUpload(false)}
+      />
     </div>
   );
 }
