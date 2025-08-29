@@ -10,6 +10,7 @@ export default function Home() {
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [selectedFile, setSelectedFile] = useState(null);
   const [showUpload, setShowUpload] = useState(false);
   const messagesEndRef = useRef(null);
 
@@ -22,6 +23,7 @@ export default function Home() {
   const handleNewNotebook = () => {
     setMessages([]);
     setUploadedFiles([]);
+    setSelectedFile(null);
     setShowUpload(false);
   };
 
@@ -30,7 +32,14 @@ export default function Home() {
   };
 
   const handleFileUploaded = (fileInfo) => {
-    setUploadedFiles((prev) => [...prev, fileInfo]);
+    setUploadedFiles((prev) => {
+      const newFiles = [...prev, fileInfo];
+      // If this is the first file or no file is selected, select this one
+      if (prev.length === 0 || !selectedFile) {
+        setSelectedFile(fileInfo);
+      }
+      return newFiles;
+    });
     setShowUpload(false);
   };
 
@@ -56,7 +65,16 @@ export default function Home() {
       }
 
       // Remove from local state
-      setUploadedFiles((prev) => prev.filter((_, index) => index !== fileIndex));
+      setUploadedFiles((prev) => {
+        const newFiles = prev.filter((_, index) => index !== fileIndex);
+
+        // If the removed file was selected, select the first remaining file
+        if (selectedFile && selectedFile.serverFilename === file.serverFilename) {
+          setSelectedFile(newFiles.length > 0 ? newFiles[0] : null);
+        }
+
+        return newFiles;
+      });
 
       console.log(`File ${filenameToDelete} removed successfully`);
     } catch (error) {
@@ -68,16 +86,32 @@ export default function Home() {
   const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
 
+    // Check if a file is selected
+    if (!selectedFile) {
+      alert('Please select a file to chat with first.');
+      return;
+    }
+
     const userMessage = inputValue;
     setInputValue('');
     setMessages((prev) => [...prev, { role: 'user', content: userMessage }]);
     setIsLoading(true);
 
+    const collectionNameToUse = selectedFile.serverFilename || selectedFile.name;
+    console.log('Sending chat request:', {
+      userQuery: userMessage,
+      collectionName: collectionNameToUse,
+      selectedFile: selectedFile
+    });
+
     try {
       const response = await fetch('/api/files/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userQuery: userMessage }),
+        body: JSON.stringify({
+          userQuery: userMessage,
+          collectionName: collectionNameToUse
+        }),
       });
       const data = await response.json();
       if (response.ok) {
@@ -85,7 +119,7 @@ export default function Home() {
       } else {
         setMessages((prev) => [
           ...prev,
-          { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' },
+          { role: 'assistant', content: `Sorry, I encountered an error: ${data.error}. Please try again.` },
         ]);
       }
     } catch (error) {
@@ -127,31 +161,47 @@ export default function Home() {
           <div className="p-4 overflow-y-auto flex-1">
             <div className="space-y-2">
               {uploadedFiles.length > 0 ? (
-                uploadedFiles.map((file, index) => (
-                  <div key={index} className="flex items-center gap-3 p-3 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors group">
-                    <div className="w-8 h-8 rounded bg-gray-600 flex items-center justify-center">
-                      <svg className="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                      </svg>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium truncate text-white">{file.name}</p>
-                      <p className="text-xs text-gray-400">{file.size} • PDF</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-green-400" title="Indexed"></div>
-                      <button
-                        onClick={() => handleFileRemoved(index)}
-                        className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-400 transition-all duration-200 p-1"
-                        title="Remove file"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                uploadedFiles.map((file, index) => {
+                  const isSelected = selectedFile && selectedFile.serverFilename === file.serverFilename;
+                  return (
+                    <div
+                      key={index}
+                      onClick={() => setSelectedFile(file)}
+                      className={`flex items-center gap-3 p-3 rounded-lg transition-colors group cursor-pointer ${isSelected
+                          ? 'bg-blue-600 hover:bg-blue-500'
+                          : 'bg-gray-700 hover:bg-gray-600'
+                        }`}
+                    >
+                      <div className={`w-8 h-8 rounded flex items-center justify-center ${isSelected ? 'bg-blue-500' : 'bg-gray-600'
+                        }`}>
+                        <svg className="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                         </svg>
-                      </button>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate text-white">{file.name}</p>
+                        <p className={`text-xs ${isSelected ? 'text-blue-200' : 'text-gray-400'}`}>
+                          {file.size} • PDF {isSelected ? '• Active' : ''}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-green-400" title="Indexed"></div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation(); // Prevent file selection when clicking delete
+                            handleFileRemoved(index);
+                          }}
+                          className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-400 transition-all duration-200 p-1"
+                          title="Remove file"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               ) : (
                 <div className="text-center py-10">
                   <div className="w-12 h-12 rounded-lg mx-auto mb-3 flex items-center justify-center bg-gray-700">
@@ -170,7 +220,17 @@ export default function Home() {
         {/* Chat Panel */}
         <section className="flex-1 bg-gray-800 rounded-lg flex flex-col overflow-hidden min-h-0">
           <div className="px-5 py-3 border-b border-gray-700 flex-shrink-0">
-            <h2 className="text-sm font-medium text-white">Chat</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-medium text-white">Chat</h2>
+              {selectedFile && (
+                <div className="flex items-center gap-2 text-xs text-gray-400">
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+                  <span>Chatting with: {selectedFile.name}</span>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Chat Messages */}
@@ -183,14 +243,22 @@ export default function Home() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                     </svg>
                   </div>
-                  <h2 className="text-lg font-medium mb-1 text-white">Add a source to get started</h2>
+                  <h2 className="text-lg font-medium mb-1 text-white">
+                    {uploadedFiles.length === 0 ? "Add a source to get started" : "Select a file to chat with"}
+                  </h2>
                   <p className="mb-6 text-sm text-gray-400">
-                    {uploadedFiles.length > 0
-                      ? "Ask questions about your uploaded documents and I'll help you find answers."
-                      : "Upload some documents first, then ask questions about them."}
+                    {uploadedFiles.length === 0
+                      ? "Upload some documents first, then ask questions about them."
+                      : selectedFile
+                        ? "Ask questions about your uploaded documents and I'll help you find answers."
+                        : "Click on a file in the sources panel to start chatting with it."}
                   </p>
                   <div className="flex items-center justify-center">
-                    <button onClick={() => setShowUpload(true)} className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors">Upload a source</button>
+                    {uploadedFiles.length === 0 ? (
+                      <button onClick={() => setShowUpload(true)} className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors">Upload a source</button>
+                    ) : !selectedFile ? (
+                      <p className="text-xs text-gray-500">👈 Click on a file to select it</p>
+                    ) : null}
                   </div>
                 </div>
               </div>

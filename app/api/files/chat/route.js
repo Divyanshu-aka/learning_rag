@@ -7,7 +7,16 @@ import { NextResponse } from "next/server";
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { userQuery } = body;
+    const { userQuery, collectionName } = body;
+
+    console.log("Chat request received:", { userQuery, collectionName });
+
+    if (!collectionName) {
+      return NextResponse.json(
+        { error: "Collection name is required" },
+        { status: 400 }
+      );
+    }
 
     const client = new OpenAI({
       apiKey: process.env.GOOGLE_AI_API_KEY,
@@ -20,16 +29,18 @@ export async function POST(request) {
       apiKey: process.env.GOOGLE_AI_API_KEY,
     });
 
+    console.log("Connecting to Qdrant collection:", collectionName);
     const vectorStore = await QdrantVectorStore.fromExistingCollection(
       embeddings,
       {
-        url: "http://localhost:6333",
-        collectionName: "chaicode-collection",
+        url: process.env.QDRANT_URL,
+        apiKey: process.env.QDRANT_API_KEY,
+        collectionName: collectionName,
       }
     );
 
     const vectorSearcher = vectorStore.asRetriever({
-      k: 125,
+      k: 10,
     });
 
     const relevantChunk = await vectorSearcher.invoke(userQuery);
@@ -59,9 +70,16 @@ export async function POST(request) {
       { status: 200 }
     );
   } catch (error) {
-    console.error("Something went wrong:", error);
+    console.error("Chat error:", error);
+    console.error("Error details:", {
+      message: error.message,
+      stack: error.stack,
+      collectionName: body?.collectionName
+    });
+    
+   
     return NextResponse.json(
-      { error: "Internal Server Error" },
+      { error: errorMessage, details: error.message },
       { status: 500 }
     );
   }

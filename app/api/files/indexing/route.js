@@ -28,6 +28,7 @@ export async function POST(request) {
       embeddings,
       {
         url: process.env.QDRANT_URL ,
+        apiKey: process.env.QDRANT_API_KEY,
         collectionName: filename,
       }
     );
