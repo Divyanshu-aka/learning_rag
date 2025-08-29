@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
+import os from "os";
 
 export async function POST(request) {
   try {
@@ -11,15 +12,17 @@ export async function POST(request) {
       return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
     }
 
-    // Create uploads directory if it doesn't exist
-    const uploadsDir = path.join(process.cwd(), "uploads");
+    // Use temporary directory instead of uploads directory
+    const tmpDir = os.tmpdir();
+    const uploadsDir = path.join(tmpDir, "uploads");
+
     try {
       await mkdir(uploadsDir, { recursive: true });
     } catch (error) {
       // Directory might already exist
     }
 
-    // Save the file
+    // Save the file to temporary directory
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
     const filename = `${Date.now()}-${file.name}`;
@@ -37,8 +40,14 @@ export async function POST(request) {
     });
   } catch (error) {
     console.error("Upload error:", error);
+    console.error("Error details:", {
+      message: error.message,
+      stack: error.stack,
+      cwd: process.cwd(),
+      tmpdir: os.tmpdir(),
+    });
     return NextResponse.json(
-      { error: "Failed to upload file" },
+      { error: "Failed to upload file", details: error.message },
       { status: 500 }
     );
   }
