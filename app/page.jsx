@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import TopBar from './components/TopBar';
 import FileUpload from './components/FileUpload';
+import MarkdownMessage from './components/MarkdownMessage';
 
 export default function Home() {
   // state
@@ -168,20 +169,30 @@ export default function Home() {
                       key={index}
                       onClick={() => setSelectedFile(file)}
                       className={`flex items-center gap-3 p-3 rounded-lg transition-colors group cursor-pointer ${isSelected
-                          ? 'bg-blue-600 hover:bg-blue-500'
-                          : 'bg-gray-700 hover:bg-gray-600'
+                        ? 'bg-blue-600 hover:bg-blue-500'
+                        : 'bg-gray-700 hover:bg-gray-600'
                         }`}
                     >
                       <div className={`w-8 h-8 rounded flex items-center justify-center ${isSelected ? 'bg-blue-500' : 'bg-gray-600'
                         }`}>
-                        <svg className="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                        </svg>
+                        {file.type === 'youtube' ? (
+                          <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+                          </svg>
+                        ) : file.type === 'website' ? (
+                          <svg className="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                          </svg>
+                        ) : (
+                          <svg className="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                          </svg>
+                        )}
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium truncate text-white">{file.name}</p>
                         <p className={`text-xs ${isSelected ? 'text-blue-200' : 'text-gray-400'}`}>
-                          {file.size} • PDF {isSelected ? '• Active' : ''}
+                          {file.size} • {file.type === 'youtube' ? '▶️ YouTube' : file.type === 'website' ? '🌐 Website' : '📄 PDF'} {isSelected ? '• Active' : ''}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
@@ -224,9 +235,19 @@ export default function Home() {
               <h2 className="text-sm font-medium text-white">Chat</h2>
               {selectedFile && (
                 <div className="flex items-center gap-2 text-xs text-gray-400">
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                  </svg>
+                  {selectedFile.type === 'youtube' ? (
+                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+                    </svg>
+                  ) : selectedFile.type === 'website' ? (
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                    </svg>
+                  ) : (
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                  )}
                   <span>Chatting with: {selectedFile.name}</span>
                 </div>
               )}
@@ -281,7 +302,11 @@ export default function Home() {
                         </div>
                       </div>
                       <div className={`px-4 py-3 rounded-xl ${message.role === 'user' ? 'bg-blue-500/20 text-white' : 'bg-gray-700 text-white'}`}>
-                        <p className="whitespace-pre-wrap">{message.content}</p>
+                        {message.role === 'assistant' ? (
+                          <MarkdownMessage content={message.content} />
+                        ) : (
+                          <p className="whitespace-pre-wrap text-gray-100">{message.content}</p>
+                        )}
                       </div>
                     </div>
                   </div>
