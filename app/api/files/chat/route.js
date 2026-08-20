@@ -188,7 +188,7 @@ export async function POST(request) {
       contents,
       config: {
         temperature: intent === "factual" ? 0.2 : 0.6, // Factual = precise; augmented = creative
-        maxOutputTokens: 2048,
+        maxOutputTokens: 8192,
       },
     });
 
