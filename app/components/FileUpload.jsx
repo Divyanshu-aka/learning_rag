@@ -87,7 +87,7 @@ export default function FileUpload({ onFileUploaded, onFileRemoved, uploadedFile
                 name: file.name,
                 serverFilename: uploadData.filename, // Store the server filename for deletion
                 size: formatFileSize(file.size),
-                type: file.type,
+                type: 'pdf', // Normalize to 'pdf' — browser MIME type is 'application/pdf'
                 filepath: uploadData.filepath,
                 uploadedAt: new Date().toISOString(),
             });

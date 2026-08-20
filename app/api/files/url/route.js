@@ -28,43 +28,64 @@ export async function POST(request) {
 
     console.log("Loading content from URL:", url);
 
-    // Load the web page
-    const loader = new CheerioWebBaseLoader(url, {
-      selector: "body", // Can be customized to target specific content
-    });
+    // Try smart content selectors first, fall back to body
+    // This avoids pulling in navbars, footers, ads, etc.
+    let docs = [];
+    const smartSelectors = ["article", "main", ".content", ".post-content", "#content"];
 
-    const docs = await loader.load();
+    for (const selector of smartSelectors) {
+      try {
+        const loader = new CheerioWebBaseLoader(url, { selector });
+        const loaded = await loader.load();
+        if (loaded?.[0]?.pageContent?.trim().length > 200) {
+          docs = loaded;
+          console.log(`Content loaded with selector "${selector}", length: ${docs[0].pageContent.length}`);
+          break;
+        }
+      } catch (_) {
+        // Try next selector
+      }
+    }
 
-    if (!docs || docs.length === 0) {
+    // Fallback to full body
+    if (docs.length === 0) {
+      const loader = new CheerioWebBaseLoader(url, { selector: "body" });
+      docs = await loader.load();
+      console.log("Fell back to body selector, length:", docs[0]?.pageContent?.length);
+    }
+
+    if (!docs || docs.length === 0 || !docs[0].pageContent.trim()) {
       return NextResponse.json(
         { error: "No content could be extracted from the URL" },
         { status: 400 }
       );
     }
 
-    console.log("Content loaded, length:", docs[0].pageContent.length);
+    // Extract page title from metadata if available
+    const pageTitle = docs[0]?.metadata?.title || url;
 
-    // Split the content into chunks
+    // Enrich metadata on all docs
+    docs.forEach((doc) => {
+      doc.metadata = {
+        ...doc.metadata,
+        source: url,
+        pageTitle: pageTitle,
+        type: "website",
+      };
+    });
+
+    // Larger chunks — websites need more context per chunk than PDFs
     const textSplitter = new RecursiveCharacterTextSplitter({
-      chunkSize: 1000,
-      chunkOverlap: 200,
+      chunkSize: 2000,
+      chunkOverlap: 400,
     });
 
     const splitDocs = await textSplitter.splitDocuments(docs);
     console.log("Split into chunks:", splitDocs.length);
 
-    // Add URL as metadata to each chunk
-    splitDocs.forEach((doc) => {
-      doc.metadata = {
-        ...doc.metadata,
-        source: url,
-        type: "website",
-      };
-    });
-
     // Create embeddings
     const embeddings = new GoogleGenerativeAIEmbeddings({
-      model: "text-embedding-004",
+      model: "gemini-embedding-001",
       apiKey: process.env.GOOGLE_AI_API_KEY,
     });
 
@@ -78,15 +99,11 @@ export async function POST(request) {
     console.log("Creating vector store with collection:", collectionName);
 
     // Store in Qdrant
-    const vectorStore = await QdrantVectorStore.fromDocuments(
-      splitDocs,
-      embeddings,
-      {
-        url: process.env.QDRANT_URL,
-        apiKey: process.env.QDRANT_API_KEY,
-        collectionName: collectionName,
-      }
-    );
+    await QdrantVectorStore.fromDocuments(splitDocs, embeddings, {
+      url: process.env.QDRANT_URL,
+      apiKey: process.env.QDRANT_API_KEY,
+      collectionName: collectionName,
+    });
 
     console.log("Indexing completed for URL");
 
@@ -95,6 +112,7 @@ export async function POST(request) {
         message: "URL indexed successfully",
         collectionName: collectionName,
         chunksCount: splitDocs.length,
+        pageTitle: pageTitle,
         url: url,
       },
       { status: 200 }

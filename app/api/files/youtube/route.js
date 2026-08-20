@@ -20,6 +20,18 @@ function extractVideoId(url) {
   return null;
 }
 
+// Convert seconds to HH:MM:SS or MM:SS
+function formatTimestamp(seconds) {
+  const s = Math.floor(seconds);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  if (h > 0) {
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
+  }
+  return `${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
+}
+
 export async function POST(request) {
   try {
     const body = await request.json();
@@ -45,7 +57,7 @@ export async function POST(request) {
 
     console.log("Extracted video ID:", videoId);
 
-    // Fetch transcript
+    // Fetch transcript with timestamps
     let transcriptData;
     try {
       transcriptData = await YoutubeTranscript.fetchTranscript(videoId);
@@ -68,39 +80,64 @@ export async function POST(request) {
       );
     }
 
-    // Combine transcript segments with timestamps
-    const fullTranscript = transcriptData
-      .map((segment) => {
-        const timestamp = new Date(segment.offset).toISOString().substr(11, 8);
-        return `[${timestamp}] ${segment.text}`;
-      })
-      .join(" ");
+    console.log(`Fetched ${transcriptData.length} transcript segments`);
 
-    console.log("Transcript length:", fullTranscript.length);
+    // Build per-segment documents with timestamp metadata
+    // Group segments into ~1500 char topic windows, preserving start time of the window
+    const segmentDocs = [];
+    let buffer = "";
+    let bufferStartTime = 0;
+    let bufferStartFormatted = "00:00";
 
-    // Create a document with the transcript
-    const doc = new Document({
-      pageContent: fullTranscript,
-      metadata: {
-        source: url,
-        videoId: videoId,
-        type: "youtube",
-        segmentCount: transcriptData.length,
-      },
-    });
+    for (let i = 0; i < transcriptData.length; i++) {
+      const seg = transcriptData[i];
+      // offset is in milliseconds
+      const offsetSec = seg.offset / 1000;
+      const formatted = formatTimestamp(offsetSec);
+      const line = `[${formatted}] ${seg.text}`;
 
-    // Split into chunks
+      if (buffer.length === 0) {
+        bufferStartTime = offsetSec;
+        bufferStartFormatted = formatted;
+      }
+
+      buffer += (buffer.length > 0 ? " " : "") + line;
+
+      // Flush buffer when it reaches ~1500 chars or end of transcript
+      if (buffer.length >= 1500 || i === transcriptData.length - 1) {
+        segmentDocs.push(
+          new Document({
+            pageContent: buffer,
+            metadata: {
+              source: url,
+              videoId: videoId,
+              type: "youtube",
+              startTime: bufferStartTime,
+              timestamp: bufferStartFormatted,
+              youtubeUrl: `https://www.youtube.com/watch?v=${videoId}&t=${Math.floor(bufferStartTime)}s`,
+            },
+          })
+        );
+        buffer = "";
+        bufferStartTime = 0;
+        bufferStartFormatted = "00:00";
+      }
+    }
+
+    console.log(`Created ${segmentDocs.length} timestamp-aware chunks`);
+
+    // Further split very large chunks while preserving metadata
     const textSplitter = new RecursiveCharacterTextSplitter({
-      chunkSize: 1000,
+      chunkSize: 1500,
       chunkOverlap: 200,
     });
 
-    const splitDocs = await textSplitter.splitDocuments([doc]);
-    console.log("Split into chunks:", splitDocs.length);
+    const splitDocs = await textSplitter.splitDocuments(segmentDocs);
+    console.log("Final split chunks:", splitDocs.length);
 
     // Create embeddings
     const embeddings = new GoogleGenerativeAIEmbeddings({
-      model: "text-embedding-004",
+      model: "gemini-embedding-001",
       apiKey: process.env.GOOGLE_AI_API_KEY,
     });
 
@@ -110,15 +147,11 @@ export async function POST(request) {
     console.log("Creating vector store with collection:", collectionName);
 
     // Store in Qdrant
-    const vectorStore = await QdrantVectorStore.fromDocuments(
-      splitDocs,
-      embeddings,
-      {
-        url: process.env.QDRANT_URL,
-        apiKey: process.env.QDRANT_API_KEY,
-        collectionName: collectionName,
-      }
-    );
+    await QdrantVectorStore.fromDocuments(splitDocs, embeddings, {
+      url: process.env.QDRANT_URL,
+      apiKey: process.env.QDRANT_API_KEY,
+      collectionName: collectionName,
+    });
 
     console.log("Indexing completed for YouTube video");
 
@@ -129,7 +162,8 @@ export async function POST(request) {
         chunksCount: splitDocs.length,
         videoId: videoId,
         url: url,
-        transcriptLength: fullTranscript.length,
+        segmentCount: transcriptData.length,
+        transcriptLength: transcriptData.reduce((acc, s) => acc + s.text.length, 0),
       },
       { status: 200 }
     );

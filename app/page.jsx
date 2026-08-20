@@ -111,7 +111,9 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userQuery: userMessage,
-          collectionName: collectionNameToUse
+          collectionName: collectionNameToUse,
+          sourceType: selectedFile.type || 'pdf',
+          conversationHistory: messages.slice(-6), // last 6 messages for context
         }),
       });
       const data = await response.json();
